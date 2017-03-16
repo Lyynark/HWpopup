@@ -78,31 +78,15 @@ public enum Tokens {
         this.pilots = pilots;
     }
 
-    public static List<Tokens> loadForPilot(VassalXWSPilotPieces pilot) {
-        List<Tokens> tokens = Lists.newArrayList();
-        for (Tokens token : values()) {
-            if (pilot.getShipData() != null) {
-                for (String action : pilot.getShipData().getActions()) {
-                    if (token.actions.contains(action)) {
-                        tokens.add(token);
-                    }
-                }
+    public List<String> getActions() {
+        return actions;
+    }
 
-                if (pilot.getPilotData() != null) {
-                    String shipPilot = pilot.getShipData().getXws() + "/" + pilot.getPilotData().getXws();
-                    if (token.pilots.contains(shipPilot)) {
-                        tokens.add(token);
-                    }
-                }
-            }
+    public List<String> getUpgrades() {
+        return upgrades;
+    }
 
-            for (VassalXWSPilotPieces.Upgrade upgrade : pilot.getUpgrades()) {
-                if (token.upgrades.contains(upgrade.getXwsName())) {
-                    tokens.add(token);
-                }
-            }
-        }
-
-        return tokens;
+    public List<String> getPilots() {
+        return pilots;
     }
 }

@@ -11,23 +11,16 @@ import VASSAL.counters.GamePiece;
  * Created by amatheny on 2/8/17.
  */
 public class VassalXWSListPieces {
-    private List<VassalXWSPilotPieces> ships = Lists.newArrayList();
+    private List<VassalXWSPilotPieces> pilots = Lists.newArrayList();
     private List<PieceSlot> obstacles = Lists.newArrayList();
+    private String listName;
 
-    public List<VassalXWSPilotPieces> getShips() {
-        return ships;
-    }
-
-    public void setShips(List<VassalXWSPilotPieces> ships) {
-        this.ships = ships;
+    public List<VassalXWSPilotPieces> getPilots() {
+        return pilots;
     }
 
     public List<PieceSlot> getObstacles() {
         return obstacles;
-    }
-
-    public void setObstacles(List<PieceSlot> obstacles) {
-        this.obstacles = obstacles;
     }
 
     public List<GamePiece> getObstaclesForDisplay() {
@@ -39,12 +32,12 @@ public class VassalXWSListPieces {
     }
 
     public int getSquadPoints() {
-        if (ships.isEmpty()) {
+        if (pilots.isEmpty()) {
             return 0;
         }
 
         int total = 0;
-        for (VassalXWSPilotPieces ship : ships) {
+        for (VassalXWSPilotPieces ship : pilots) {
             if (ship.getPilotData() == null) {
                 Util.logToChat("Unable to calculate points for " + ship.getPilotCard().getConfigureName());
                 continue;
@@ -69,5 +62,13 @@ public class VassalXWSListPieces {
             }
         }
         return total;
+    }
+
+    public void setListName(String name) {
+        this.listName = name;
+    }
+
+    public String getListName() {
+        return this.listName;
     }
 }

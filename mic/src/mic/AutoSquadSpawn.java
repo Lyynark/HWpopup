@@ -27,6 +27,7 @@ import VASSAL.counters.GamePiece;
 public class AutoSquadSpawn extends AbstractConfigurable {
 
     private VassalXWSPieceLoader slotLoader = new VassalXWSPieceLoader();
+    private VassalXWSListLoader listLoader = new VassalXWSListLoader(this.slotLoader);
     private List<JButton> spawnButtons = Lists.newArrayList();
 
     private void spawnPiece(GamePiece piece, Point position, Map playerMap) {
@@ -71,8 +72,12 @@ public class AutoSquadSpawn extends AbstractConfigurable {
             return;
         }
 
-        XWSList xwsList = XWSFetcher.fetchFromUrl(translatedURL.toString());
-        VassalXWSListPieces pieces = slotLoader.loadListFromXWS(xwsList);
+        String listUrl = translatedURL.toString();
+        VassalXWSListPieces pieces = listLoader.loadListFromUrl(listUrl);
+        if (pieces == null) {
+            logToChat("Unable to load list: %s", listUrl);
+            return;
+        }
 
         Point startPosition = new Point(150, 150);
         Point dialstartPosition = new Point(300, 100);
@@ -87,11 +92,11 @@ public class AutoSquadSpawn extends AbstractConfigurable {
         int totalTLWidth = 0;
 
         List<GamePiece> shipBases = Lists.newArrayList();
-        for (VassalXWSPilotPieces ship : pieces.getShips()) {
-            logToChat("Spawning pilot: %s", ship.getPilotCard().getConfigureName());
-            shipBases.add(ship.cloneShip());
+        for (VassalXWSPilotPieces pilot : pieces.getPilots()) {
+            logToChat("Spawning pilot: %s", pilot.getPilotCard().getConfigureName());
+            shipBases.add(pilot.cloneShip());
 
-            GamePiece pilotPiece = ship.clonePilotCard();
+            GamePiece pilotPiece = pilot.clonePilotCard();
             int pilotWidth = (int) pilotPiece.boundingBox().getWidth();
             int pilotHeight = (int) pilotPiece.boundingBox().getHeight();
             totalPilotHeight += pilotHeight;
@@ -100,7 +105,7 @@ public class AutoSquadSpawn extends AbstractConfigurable {
                             (int) startPosition.getY() + totalPilotHeight),
                     playerMap);
 
-            GamePiece dialPiece = ship.cloneDial();
+            GamePiece dialPiece = pilot.cloneDial();
             int dialWidth = (int) dialPiece.boundingBox().getWidth();
             spawnPiece(dialPiece, new Point(
                             (int) dialstartPosition.getX() + totalDialsWidth,
@@ -109,7 +114,7 @@ public class AutoSquadSpawn extends AbstractConfigurable {
             totalDialsWidth += dialWidth;
 
             int totalUpgradeWidth = 0;
-            for (VassalXWSPilotPieces.Upgrade upgrade : ship.getUpgrades()) {
+            for (VassalXWSPilotPieces.Upgrade upgrade : pilot.getUpgrades()) {
                 GamePiece upgradePiece = upgrade.cloneGamePiece();
                 spawnPiece(upgradePiece, new Point(
                                 (int) startPosition.getX() + pilotWidth + totalUpgradeWidth + fudgePilotUpgradeFrontier,
@@ -119,7 +124,7 @@ public class AutoSquadSpawn extends AbstractConfigurable {
             } //loop to next upgrade
 
 
-            for (PieceSlot conditionSlot : ship.getConditions()) {
+            for (PieceSlot conditionSlot : pilot.getConditions()) {
                 GamePiece conditionPiece = newPiece(conditionSlot);
                 spawnPiece(conditionPiece, new Point(
                                 (int) startPosition.getX() + pilotWidth + totalUpgradeWidth + fudgePilotUpgradeFrontier,
@@ -128,7 +133,7 @@ public class AutoSquadSpawn extends AbstractConfigurable {
                 totalUpgradeWidth += conditionPiece.boundingBox().getWidth();
             } //loop to next condition
 
-            for (GamePiece token : ship.getTokensForDisplay()) {
+            for (GamePiece token : pilot.getTokensForDisplay()) {
                 PieceSlot pieceSlot = new PieceSlot(token);
                 if ("Target Lock".equals(pieceSlot.getConfigureName())) {//if a target lock token, place elsewhere
                     spawnPiece(token, new Point(
@@ -162,7 +167,7 @@ public class AutoSquadSpawn extends AbstractConfigurable {
             obstacleX += obstacle.getShape().getBounds().getWidth();
         }
 
-        String listName = xwsList.getName();
+        String listName = pieces.getListName();
         logToChat("%s point list%s loaded from %s", pieces.getSquadPoints(),
                 listName != null ? " '" + listName + "'" : "", url);
     }

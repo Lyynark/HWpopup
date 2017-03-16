@@ -28,105 +28,12 @@ public class VassalXWSPieceLoader {
     Map<String, VassalXWSPilotPieces.Upgrade> upgradePiecesMap = Maps.newHashMap();
     Map<Tokens, PieceSlot> tokenPiecesMap = Maps.newHashMap();
     Map<Obstacles, PieceSlot> obstaclesPiecesMap = Maps.newHashMap();
-
-    public VassalXWSListPieces loadListFromXWS(XWSList list) {
-        if (pilotPiecesMap.isEmpty() || upgradePiecesMap.isEmpty()
-                || tokenPiecesMap.isEmpty()|| obstaclesPiecesMap.isEmpty()) {
-            loadPieces();
-        }
-
-        VassalXWSListPieces pieces = new VassalXWSListPieces();
-
-        Multiset<String> pilotCounts = HashMultiset.create();
-        for (XWSList.XWSPilot pilot : list.getPilots()) {
-            pilotCounts.add(pilot.getName());
-        }
-
-        Multiset<String> genericPilotsAdded = HashMultiset.create();
-
-        for (XWSList.XWSPilot pilot : list.getPilots()) {
-            String pilotKey = getPilotMapKey(list.getFaction(), pilot.getShip(), pilot.getName());
-            VassalXWSPilotPieces barePieces = this.pilotPiecesMap.get(pilotKey);
-            if (barePieces == null) {
-                Util.logToChat("Could not find pilot: " + pilotKey);
-                continue;
-            }
-
-            VassalXWSPilotPieces pilotPieces = new VassalXWSPilotPieces(barePieces);
-
-            if (pilotPieces.getPilotData() != null) {
-                List<PieceSlot> foundConditions = getConditionsForCard(pilotPieces.getPilotData().getConditions());
-                pilotPieces.getConditions().addAll(foundConditions);
-            }
-
-            if (pilotCounts.count(pilot.getName()) > 1) {
-                genericPilotsAdded.add(pilot.getName());
-                pilotPieces.setShipNumber(genericPilotsAdded.count(pilot.getName()));
-            }
-
-            for (String upgradeType : pilot.getUpgrades().keySet()) {
-                for (String upgradeName : pilot.getUpgrades().get(upgradeType)) {
-                    String upgradeKey = getUpgradeMapKey(upgradeType, upgradeName);
-                    VassalXWSPilotPieces.Upgrade upgrade = upgradePiecesMap.get(upgradeKey);
-                    if (upgrade == null) {
-                        Util.logToChat("Could not find upgrade: " + upgradeKey);
-                        continue;
-                    }
-
-                    if (upgrade.getUpgradeData() != null) {
-                        List<PieceSlot> foundConditions = getConditionsForCard(upgrade.getUpgradeData().getConditions());
-                        pilotPieces.getConditions().addAll(foundConditions);
-                    }
-
-
-                    pilotPieces.getUpgrades().add(upgrade);
-                }
-            }
-
-            List<Tokens> tokens = Tokens.loadForPilot(pilotPieces);
-            for (Tokens token : tokens) {
-                PieceSlot tokenSlot = tokenPiecesMap.get(token);
-                if (tokenSlot != null) {
-                    pilotPieces.getTokens().put(token, tokenSlot);
-                }
-            }
-
-            pieces.getShips().add(pilotPieces);
-        }
-
-        for (String xwsObstacleName : list.getObstacles()) {
-            Obstacles obstacle = Obstacles.forXwsName(xwsObstacleName);
-            if (!obstaclesPiecesMap.containsKey(obstacle)) {
-                Util.logToChat("Unable to find vassal obstacle for xws obstacle '" + xwsObstacleName + "'");
-                continue;
-            }
-            pieces.getObstacles().add(obstaclesPiecesMap.get(obstacle));
-        }
-
-        return pieces;
-    }
-
-    private List<PieceSlot> getConditionsForCard(List<String> conditions) {
-        List<PieceSlot> conditionSlots = Lists.newArrayList();
-        for (String conditionName : conditions) {
-            String canonicalConditionName = Canonicalizer.getCanonicalUpgradeName(
-                    "conditions", conditionName);
-            String mapKey = getUpgradeMapKey("conditions", canonicalConditionName);
-            VassalXWSPilotPieces.Upgrade condition = this.upgradePiecesMap.get(mapKey);
-            if (condition == null) {
-                Util.logToChat("Unable to load condition: " + conditionName);
-                continue;
-            }
-            conditionSlots.add(condition.getPieceSlot());
-        }
-        return conditionSlots;
-    }
+    private boolean isLoaded = false;
 
     public void loadPieces() {
-        pilotPiecesMap = Maps.newHashMap();
-        upgradePiecesMap = Maps.newHashMap();
-        tokenPiecesMap = Maps.newHashMap();
-        obstaclesPiecesMap = Maps.newHashMap();
+        if (isLoaded) {
+            return;
+        }
 
         List<ListWidget> listWidgets = GameModule.getGameModule().getAllDescendantComponentsOf(ListWidget.class);
         for (ListWidget listWidget : listWidgets) {
@@ -151,6 +58,32 @@ public class VassalXWSPieceLoader {
                     break;
             }
         }
+
+        this.isLoaded = true;
+    }
+
+    public VassalXWSPilotPieces getPilot(String faction, String shipName, String pilotName) {
+        return this.pilotPiecesMap.get(getPilotMapKey(faction, shipName, pilotName));
+    }
+
+    public VassalXWSPilotPieces.Upgrade getUpgrade(String upgradeType, String upgradeName) {
+        return this.upgradePiecesMap.get(getUpgradeMapKey(upgradeType, upgradeName));
+    }
+
+    public PieceSlot getObstacle(String obstacleName) {
+        return this.obstaclesPiecesMap.get(Obstacles.forXwsName(obstacleName));
+    }
+
+    public PieceSlot getToken(Tokens token) {
+        return this.tokenPiecesMap.get(token);
+    }
+
+    private String getPilotMapKey(String faction, String shipName, String pilotName) {
+        return String.format("%s/%s/%s", faction, shipName, pilotName);
+    }
+
+    private String getUpgradeMapKey(String upgradeType, String upgradeName) {
+        return String.format("%s/%s", upgradeType, upgradeName);
     }
 
     private void loadChits(ListWidget listWidget) {
@@ -291,14 +224,6 @@ public class VassalXWSPieceLoader {
             pilotPieces.setPilotData(pilotData);
             pilotPiecesMap.put(mapKey, pilotPieces);
         }
-    }
-
-    private String getPilotMapKey(String faction, String shipName, String pilotName) {
-        return String.format("%s/%s/%s", faction, shipName, pilotName);
-    }
-
-    private String getUpgradeMapKey(String upgradeType, String upgradeName) {
-        return String.format("%s/%s", upgradeType, upgradeName);
     }
 
     public List<String> validateAgainstRemote() {
